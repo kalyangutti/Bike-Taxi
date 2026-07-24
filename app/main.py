@@ -1,9 +1,21 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from scalar_fastapi import get_scalar_api_reference
 
+from app.database.session import create_database_tables
 from app.routes.master_router import router as master_router
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan_handler(app: FastAPI):
+    print("Server Started...")
+    await create_database_tables()
+    yield
+    print("..Server Stopped")
+
+
+app = FastAPI(lifespan=lifespan_handler)
 
 
 app.include_router(master_router)
