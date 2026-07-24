@@ -1,0 +1,63 @@
+import re
+from datetime import datetime
+from enum import Enum
+from typing import Annotated
+
+from pydantic import BaseModel, EmailStr, Field, StringConstraints, field_validator
+
+PhoneNumber = Annotated[
+    str, StringConstraints(pattern=r"^[6-9]\d{9}$", strip_whitespace=True)
+]
+
+
+def validate_password(value) -> str:
+    if len(value) < 8:
+        raise ValueError("Password must be at least 8 Characters long.")
+
+    if not re.search(r"[A-Z]", value):
+        raise ValueError("Password must contains at least one upperCase letter.")
+
+    if not re.search(r"[a-z]", value):
+        raise ValueError("Password must contains at least one lowerCase letter.")
+
+    if not re.search(r"\d", value):
+        raise ValueError("Password must contians at one digit.")
+
+    if not re.search(r"""[!@#$%^&*(){}\[\]" ?/<>,.\-:]""", value):
+        raise ValueError("Password must contian one special character")
+
+    return value
+
+
+class Gender(str, Enum):
+    male = "MALE"
+    female = "FEMALE"
+
+
+class BaseUser(BaseModel):
+    name: str
+    age: int
+    email: EmailStr
+    phone: PhoneNumber
+    gender: Gender
+
+
+class UserRead(BaseUser):
+    pass
+
+
+class UserCreate(BaseUser):
+    password: str
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+    @field_validator("password")
+    @classmethod
+    def password_validator(cls, value) -> str:
+        return validate_password(value)
+
+
+class UserDetailsUpdate(BaseModel):
+    email: EmailStr | None = None
+    phone: PhoneNumber | None = None
+    updated_at: datetime = Field(default_factory=datetime.now)

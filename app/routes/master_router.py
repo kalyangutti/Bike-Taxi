@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from app.routes.driver import router as driver_router
 from app.routes.health import router as health_router
-from app.routes.rider import router as rider_router
+from app.routes.user import router as rider_router
 
 router = APIRouter()
 

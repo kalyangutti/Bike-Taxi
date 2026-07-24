@@ -70,11 +70,4 @@ class DriverCreate(BaseDriver):
 class DriverUpdate(BaseModel):
     phone: PhoneNumber | None = None
     vehicle_number: str | None = None
-    password: str | None = None
-
-    @field_validator("password")
-    @classmethod
-    def password_validator(cls, value):
-        if value is None:
-            return None
-        return validate_password(value)
+ 
