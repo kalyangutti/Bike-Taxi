@@ -41,6 +41,7 @@ class Gender(str, Enum):
 class BaseModel(SQLModel):
     name: str = Field(min_length=1)
     email: EmailStr
+    age: int
     phone: PhoneNumber
     password: str
     is_active: bool = True

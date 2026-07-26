@@ -2,6 +2,7 @@ import re
 from datetime import datetime
 from enum import Enum
 from typing import Annotated
+from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, StringConstraints, field_validator
 
@@ -43,6 +44,7 @@ class BaseUser(BaseModel):
 
 
 class UserRead(BaseUser):
+    id: UUID
     pass
 
 
@@ -61,3 +63,14 @@ class UserDetailsUpdate(BaseModel):
     email: EmailStr | None = None
     phone: PhoneNumber | None = None
     updated_at: datetime = Field(default_factory=datetime.now)
+
+
+class UserRespone(BaseModel):
+    id: UUID
+    name: str
+    email: EmailStr
+    age: int
+    gender: str
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime

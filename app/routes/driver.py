@@ -130,7 +130,7 @@ def sort_drivers(field: str, order: str = "asc"):
 
 # Pagination
 @router.get("/offset")
-def paginate_drivers(page: int , size: int ):
+def paginate_drivers(page: int, size: int):
     drivers = list(database.values())
     start = (page - 1) * size
     end = start + size
