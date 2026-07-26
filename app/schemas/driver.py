@@ -46,7 +46,6 @@ class BaseClass(BaseModel):
     email: EmailStr
     phone: PhoneNumber
     age: int = Field(ge=18)
-    vehicle_number: str
 
 
 class BaseDriver(BaseClass):
@@ -73,17 +72,17 @@ class DriverCreate(BaseDriver):
 
 class DriverUpdate(BaseModel):
     phone: PhoneNumber | None = None
-    vehicle_number: str | None = None
+
     updated_at: datetime = Field(default_factory=datetime.now)
 
 
 class DriverRespone(BaseModel):
-    id:UUID
+    id: UUID
     name: str
     email: EmailStr
     phone: PhoneNumber
     age: int = Field(ge=18)
-    vehicle_number: str
+
     gender: Gender
     is_active: bool = Field(default=True)
     rides: int = Field(default=0, ge=0)

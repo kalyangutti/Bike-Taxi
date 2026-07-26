@@ -1,13 +1,13 @@
 import re
 from datetime import datetime
 from enum import Enum
-from typing import Annotated
+from typing import Annotated, Optional
 from uuid import UUID, uuid4
 
 from pydantic import EmailStr, StringConstraints, field_validator
 from sqlalchemy import Column
 from sqlalchemy.dialects import postgresql
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, Relationship, SQLModel
 
 PhoneNumber = Annotated[
     str, StringConstraints(pattern=r"^[6-9]\d{9}$", strip_whitespace=True)
@@ -38,6 +38,12 @@ class Gender(str, Enum):
     female = "FEMALE"
 
 
+class VehicleType(str, Enum):
+    bike = "BIKE"
+    car = "CAR"
+    auto = "AUTO"
+
+
 class BaseModel(SQLModel):
     name: str = Field(min_length=1)
     email: EmailStr
@@ -57,9 +63,19 @@ class BaseModel(SQLModel):
 
 class Driver(BaseModel, table=True):
     id: UUID = Field(sa_column=Column(postgresql.UUID, default=uuid4, primary_key=True))
-    vehicle_number: str
     rides: int
+    vehicles: list["Vehicle"] = Relationship(back_populates="driver")
 
 
 class User(BaseModel, table=True):
     id: UUID = Field(sa_column=Column(postgresql.UUID, default=uuid4, primary_key=True))
+
+
+class Vehicle(SQLModel, table=True):
+    id: UUID = Field(sa_column=Column(postgresql.UUID, default=uuid4, primary_key=True))
+    vehicle_brand: str
+    vehicle_name: str
+    registration_number: str = Field(unique=True, nullable=False)
+    vehicle_type: VehicleType
+    driver_id: UUID = Field(foreign_key="driver.id")
+    driver: Optional["Driver"] = Relationship(back_populates="vehicles")
