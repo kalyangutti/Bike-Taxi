@@ -1,149 +1,54 @@
-from fastapi import APIRouter, HTTPException, status
+from typing import List
+from uuid import UUID
 
-from app.schemas.driver import DriverCreate, DriverRead, DriverUpdate
+from fastapi import APIRouter
+
+from app.database.dependencies import DriverServiceDep
+from app.schemas.driver import DriverCreate, DriverRespone, DriverUpdate
 
 router = APIRouter(prefix="/drivers", tags=["Driver"])
 
-database = {
-    1: {
-        "name": "Rahul Sharma",
-        "email": "rahul@gmail.com",
-        "phone": "9876543210",
-        "age": 24,
-        "vehicle_number": "TN01AB1234",
-        "password": "Rahul@123",
-        "gender": "MALE",
-        "is_active": True,
-        "rides": 125,
-    },
-    2: {
-        "name": "Arjun Kumar",
-        "email": "arjun@gmail.com",
-        "phone": "9123456789",
-        "age": 27,
-        "vehicle_number": "TN10CD5678",
-        "password": "Arjun@123",
-        "gender": "MALE",
-        "is_active": True,
-        "rides": 210,
-    },
-    3: {
-        "name": "Kiran Reddy",
-        "email": "kiran@gmail.com",
-        "phone": "9988776655",
-        "age": 29,
-        "vehicle_number": "KA05EF4321",
-        "password": "Kiran@123",
-        "gender": "MALE",
-        "is_active": False,
-        "rides": 98,
-    },
-    4: {
-        "name": "Sai Teja",
-        "email": "sai@gmail.com",
-        "phone": "9090909090",
-        "age": 23,
-        "vehicle_number": "AP16GH7890",
-        "password": "Sai@1234",
-        "gender": "MALE",
-        "is_active": True,
-        "rides": 56,
-    },
-    5: {
-        "name": "Charan R",
-        "email": "charan@gmail.com",
-        "phone": "9012345678",
-        "age": 26,
-        "vehicle_number": "TS09JK1122",
-        "password": "Charan@123",
-        "gender": "MALE",
-        "is_active": True,
-        "rides": 175,
-    },
-}
+
+@router.get("/id", response_model=DriverRespone)
+async def get_id_driver(id: UUID, service: DriverServiceDep):
+    return await service.get_id(id)
 
 
-# Get Drivers
-@router.get("/id", response_model=DriverRead)
-def get_driver(id: int):
-    if id not in database:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"ID {id} not found"
-        )
-    return database[id]
+@router.post("/register", response_model=DriverRespone)
+async def create_driver(driver_creditinals: DriverCreate, service: DriverServiceDep):
+    return await service.create_driver(driver_creditinals)
 
 
-# Get all Drivers
-@router.get("/alldrivers")
-def get_all_drivers():
-    return database
+@router.patch("/update_driver", response_model=DriverRespone)
+async def upadte_driver_details(
+    id: UUID, driver_details: DriverUpdate, service: DriverServiceDep
+):
+    return await service.update_driver(id, driver_details)
 
 
-# Search User
-@router.get("/filter")
-def search_user(field: str, value: str):
-    result = []
-
-    for driver in database.values():
-        if str(driver.get(field)) == value:
-            result.append(driver)
-
-    return result
-
-
-# Create  Driver
-@router.post("/create")
-def create_driver(body: DriverCreate):
-    new_id = max(database.keys()) + 1
-    database[new_id] = {**body.model_dump()}
-    return {"Detail": f"New Id {new_id} has been created"}
-
-
-# Update Driver Details
-@router.patch("/updatedetails")
-def update_driver_details(driver: DriverUpdate, driver_id: int):
-
-    print("Before:", database[driver_id])
-
-    details = driver.model_dump(exclude_unset=True)
-    print("Received:", details)
-
-    database[driver_id].update(details)
-
-    print("After:", database[driver_id])
-
-    return {"message": "Updated", "driver": database[driver_id]}
-
-
-# Sorting
-@router.get("/sort")
-def sort_drivers(field: str, order: str = "asc"):
-
-    drivers = list(database.values())
-
-    reverse = order.lower() == "desc"
-
-    sorted_drivers = sorted(drivers, key=lambda driver: driver[field], reverse=reverse)
-
-    return sorted_drivers
-
-
-# Pagination
-@router.get("/offset")
-def paginate_drivers(page: int, size: int):
-    drivers = list(database.values())
-    start = (page - 1) * size
-    end = start + size
-    return drivers[start:end]
-
-
-# Delete Driver Details
 @router.delete("/id")
-def deleteDetails(id: int):
-    if id not in database:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"{id} not Found in the Database",
-        )
-    del database[id]
-    return {"detail": f"Id of {id} database has been deleted"}
+async def delete_driver_by_uuid(id: UUID, service: DriverServiceDep):
+    return await service.delete_driver(id)
+
+
+@router.get("/sorting", response_model=List[DriverRespone])
+async def custom_flitering(
+    service: DriverServiceDep, sort_by: str = "name", order: str = "asc"
+):
+    return await service.sorting(sort_by, order)
+
+
+@router.get("/pagination", response_model=List[DriverRespone])
+async def pagination(
+    service: DriverServiceDep,
+    page: int = 1,
+    size: int = 4,
+    sort_by: str = "name",
+    order: str = "asc",
+):
+    return await service.pagination(page, size, sort_by, order)
+
+
+@router.get("/allsuer", response_model=List[DriverRespone])
+async def get_all_user(service: DriverServiceDep):
+    return await service.get_all_users()

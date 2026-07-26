@@ -1,6 +1,8 @@
 import re
+from datetime import datetime
 from enum import Enum
 from typing import Annotated
+from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, StringConstraints, field_validator
 
@@ -20,7 +22,7 @@ PhoneNumber = Annotated[
 ]
 
 
-def validate_password( value) -> str:
+def validate_password(value) -> str:
     if len(value) < 8:
         raise ValueError("Password must be at least 8 characters long.")
 
@@ -52,6 +54,8 @@ class BaseDriver(BaseClass):
     gender: Gender
     is_active: bool = Field(default=True)
     rides: int = Field(default=0, ge=0)
+    created_at: datetime = Field(default_factory=datetime.now)
+    upadted_at: datetime = Field(default_factory=datetime.now)
 
     @field_validator("password")
     @classmethod
@@ -70,4 +74,16 @@ class DriverCreate(BaseDriver):
 class DriverUpdate(BaseModel):
     phone: PhoneNumber | None = None
     vehicle_number: str | None = None
- 
+    updated_at: datetime = Field(default_factory=datetime.now)
+
+
+class DriverRespone(BaseModel):
+    id:UUID
+    name: str
+    email: EmailStr
+    phone: PhoneNumber
+    age: int = Field(ge=18)
+    vehicle_number: str
+    gender: Gender
+    is_active: bool = Field(default=True)
+    rides: int = Field(default=0, ge=0)
