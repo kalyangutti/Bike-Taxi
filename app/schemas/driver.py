@@ -79,8 +79,6 @@ class DriverUpdate(BaseModel):
 class DriverRespone(BaseModel):
     id: UUID
     name: str
-    email: EmailStr
-    phone: PhoneNumber
     age: int = Field(ge=18)
 
     gender: Gender

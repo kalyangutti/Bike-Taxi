@@ -79,3 +79,5 @@ class Vehicle(SQLModel, table=True):
     vehicle_type: VehicleType
     driver_id: UUID = Field(foreign_key="driver.id")
     driver: Optional["Driver"] = Relationship(back_populates="vehicles")
+
+

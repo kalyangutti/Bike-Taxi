@@ -19,3 +19,11 @@ class VehicleCreate(VehicleBase):
 class VehicleRead(VehicleBase):
     id: UUID
     driver_id: UUID
+
+
+class VehicleRespone(BaseModel):
+    id: UUID
+    vehicle_name: str
+    vehicle_brand: str
+    vehicle_type: VehicleType
+    registration_number: str
