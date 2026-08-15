@@ -60,17 +60,18 @@ class UserCreate(BaseUser):
 
 
 class UserDetailsUpdate(BaseModel):
+    name: str | None = None
     email: EmailStr | None = None
     phone: PhoneNumber | None = None
-    updated_at: datetime = Field(default_factory=datetime.now)
-
+    age: int | None = None
+    gender: Gender | None = None
 
 class UserRespone(BaseModel):
     id: UUID
     name: str
     email: EmailStr
     age: int
-    gender: str
+    gender: Gender
     is_active: bool
     created_at: datetime
     updated_at: datetime

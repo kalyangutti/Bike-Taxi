@@ -34,48 +34,4 @@ class VehicleRepository:
         await self.session.commit()
         return {"detail": f"Id {id} is deleted from the database..."}
 
-    # INNER JOIN
-    async def inner_join(self):
-        stmt = select(Driver, Vehicle).join(Driver, Driver.id == Vehicle.driver_id)
-        res = await self.session.execute(stmt)
-        return res.mappings().all()
-
-    # Left join
-    async def left_join(self):
-        stmt = select(Driver, Vehicle).join(
-            Vehicle, Driver.id == Vehicle.driver_id, isouter=True
-        )
-        result = await self.session.execute(stmt)
-        return result.mappings().all()
-
-    # Right Join
-    async def right_join(self):
-        stmt = select(Vehicle, Driver).join(
-            Driver, Driver.id == Vehicle.driver_id, isouter=True
-        )
-        result = await self.session.execute(stmt)
-        return result.mappings().all()
-
-    # Full Join
-    async def full_join(self):
-        stmt = select(Vehicle, Driver).join(
-            Driver, Driver.id == Vehicle.driver_id, full=True
-        )
-        result = await self.session.execute(stmt)
-        return result.mappings().all()
-
-    # Cross Join
-    async def cross_join(self):
-        stmt = select(Driver, Vehicle)
-        result = await self.session.execute(stmt)
-        return result.mappings().all()
-
-    # How Many Number of Vehicles
-    async def count(self):
-        stmt = (
-            select(Driver.name, func.count(Vehicle.id).label("Vehicle Count"))
-            .join(Vehicle, Driver.id == Vehicle.driver_id)
-            .group_by(Driver.id)
-        )
-        result = await self.session.execute(stmt)
-        return result.mappings().all()
+    

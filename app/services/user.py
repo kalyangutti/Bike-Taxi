@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -8,6 +9,7 @@ from sqlmodel import select
 from app.database.models import User
 from app.schemas.user import UserCreate, UserDetailsUpdate
 from app.security import password_hash
+from app.utils import generate_access_token
 
 
 class UserRepository:
@@ -34,13 +36,7 @@ class UserRepository:
 
         return {"Messgae": "Updated Successfully", "new_id": user.id}
 
-    async def update_user(self, id: UUID, user_update: UserDetailsUpdate):
-
-        user = await self.session.get(User, id)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"{id} not found"
-            )
+    async def update_user(self, user: User, user_update: UserDetailsUpdate):
 
         update = user_update.model_dump(exclude_none=True)
         if not update:
@@ -50,16 +46,17 @@ class UserRepository:
             )
 
         user.sqlmodel_update(update)
-        self.session.add(user)
+        user.updated_at = datetime.now()
+
         await self.session.commit()
         await self.session.refresh(user)
         return user
 
-    async def delete_user_by_id(self, id: UUID):
-        user = await self.get_id(id)
+    async def delete_user_by_id(self, user: User):
+
         await self.session.delete(user)
         await self.session.commit()
-        return {"detail": f"{id} has been deleted from the database.."}
+        return {"detail": f"{user.id} has been deleted from the database.."}
 
     async def get_all_user(self):
         stmt = select(User)
@@ -114,3 +111,19 @@ class UserRepository:
         users = result.scalars().all()
 
         return users
+
+    async def token(self, email, password):
+        stmt = select(User).where(User.email == email)
+        result = await self.session.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if user is None or not password_hash.verify(password, user.password):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="...Email or Password is incorrect..",
+            )
+
+        token = generate_access_token(
+            data={"USER": {"sub": str(user.id), "role": "user"}}
+        )
+        return {"token": token}

@@ -71,9 +71,9 @@ class DriverCreate(BaseDriver):
 
 
 class DriverUpdate(BaseModel):
-    phone: PhoneNumber | None = None
-
-    updated_at: datetime = Field(default_factory=datetime.now)
+    name: str | None = None
+    age: int | None = None
+    gender: Gender | None = None
 
 
 class DriverRespone(BaseModel):
