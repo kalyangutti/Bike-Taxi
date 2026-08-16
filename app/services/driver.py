@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import asc, desc, select
 
 from app.database.models import Driver
-from app.schemas.driver import DriverCreate, DriverUpdate
+from app.schemas.driver import ChangePassword, DriverCreate, DriverUpdate
 from app.security import password_hash
 from app.utils import generate_access_token
 
@@ -121,3 +121,25 @@ class DriverRepository:
             data={"user": {"sub": str(driver.id), "role": "driver"}}
         )
         return token
+
+    async def change_password(
+        self, current_data: Driver, password_data: ChangePassword
+    ):
+        if not password_hash.verify(password_data.old_password, current_data.password):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Old password is Incorrect",
+            )
+
+        if password_data.old_password == password_data.new_password:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="New password must be different from old password..",
+            )
+
+        current_data.password = password_hash.hash(password_data.new_password)
+
+        self.session.add(current_data)
+
+        await self.session.commit()
+        return {"message": "Password changed successfully"}

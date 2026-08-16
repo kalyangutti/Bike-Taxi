@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import oauth2_scheme_driver, oauth2_scheme_user
 from app.database.models import Driver, User
+from app.database.redis import is_jti_blacklisted
 from app.database.session import get_session
 from app.services.driver import DriverRepository
 from app.services.user import UserRepository
@@ -71,10 +72,10 @@ async def get_current_driver(
 DriverLoginDep = Annotated[Driver, Depends(get_current_driver)]
 
 
-def get_access_token_user(token: Annotated[str, Depends(oauth2_scheme_user)]):
+async def get_access_token_user(token: Annotated[str, Depends(oauth2_scheme_user)]):
     data = decode_access_token(token)
 
-    if data is None:
+    if data is None or await is_jti_blacklisted(data["jti"]):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Invalid Access Token"
         )

@@ -9,7 +9,7 @@ from sqlmodel import select
 from app.database.models import User
 from app.schemas.user import UserCreate, UserDetailsUpdate
 from app.security import password_hash
-from app.utils import generate_access_token
+from app.utils import generate_access_token, generate_refresh_token
 
 
 class UserRepository:
@@ -123,7 +123,21 @@ class UserRepository:
                 detail="...Email or Password is incorrect..",
             )
 
-        token = generate_access_token(
+        access_token = generate_access_token(
             data={"USER": {"sub": str(user.id), "role": "user"}}
         )
-        return {"token": token}
+
+        refresh_token = generate_refresh_token(
+            data={
+                "USER": {
+                    "sub": str(user.id),
+                    "role": "user",
+                }
+            }
+        )
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+        }

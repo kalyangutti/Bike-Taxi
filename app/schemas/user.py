@@ -66,6 +66,7 @@ class UserDetailsUpdate(BaseModel):
     age: int | None = None
     gender: Gender | None = None
 
+
 class UserRespone(BaseModel):
     id: UUID
     name: str
@@ -75,3 +76,7 @@ class UserRespone(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str

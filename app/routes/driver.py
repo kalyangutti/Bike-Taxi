@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.database.dependencies import DriverLoginDep, DriverServiceDep
-from app.schemas.driver import DriverCreate, DriverRespone, DriverUpdate
+from app.schemas.driver import ChangePassword, DriverCreate, DriverRespone, DriverUpdate
 
 router = APIRouter(prefix="/drivers", tags=["Driver"])
 
@@ -65,3 +65,12 @@ async def login_driver(
 @router.get("/me", response_model=DriverRespone)
 async def get_me(current_user: DriverLoginDep):
     return current_user
+
+
+@router.patch("/change_password")
+async def change_password(
+    password_data: ChangePassword,
+    current_data: DriverLoginDep,
+    service: DriverServiceDep,
+):
+    return await service.change_password(current_data, password_data)

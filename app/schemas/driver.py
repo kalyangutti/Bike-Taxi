@@ -84,3 +84,13 @@ class DriverRespone(BaseModel):
     gender: Gender
     is_active: bool = Field(default=True)
     rides: int = Field(default=0, ge=0)
+
+
+class ChangePassword(BaseModel):
+    old_password: str
+    new_password: str
+
+    @field_validator("old_password", "new_password")
+    @classmethod
+    def validate_password_fields(cls, value: str) -> str:
+        return validate_password(value)
