@@ -1,5 +1,4 @@
 import re
-from datetime import datetime
 from enum import Enum
 from typing import Annotated
 from uuid import UUID
@@ -41,24 +40,45 @@ def validate_password(value) -> str:
     return value
 
 
+def validate_license(value) -> str:
+    value = value.strip().upper()
+
+    if len(value) < 5:
+        raise ValueError("License Number must be at least 5 Characters long..")
+
+    if len(value) > 20:
+        raise ValueError("License number must be not exceed 20 Characters.")
+
+    if not re.fullmatch(r"[A-Z0-9-]+", value):
+        raise ValueError("License Number can contain only letters,numbers and hypens.")
+    return value
+
+
 class BaseClass(BaseModel):
     name: str
     email: EmailStr
+    gender: Gender
     phone: PhoneNumber
     age: int = Field(ge=18)
+    license_number: str
+
+    @field_validator("license_number")
+    @classmethod
+    def license_validator(cls, value: str) -> str:
+        return validate_license(value)
 
 
 class BaseDriver(BaseClass):
     password: str
-    gender: Gender
-    is_active: bool = Field(default=True)
-    rides: int = Field(default=0, ge=0)
-    created_at: datetime = Field(default_factory=datetime.now)
-    upadted_at: datetime = Field(default_factory=datetime.now)
+
+    current_latitude: float | None = None
+    current_longitude: float | None = None
+
+    total_rides: int = Field(default=0, ge=0)
 
     @field_validator("password")
     @classmethod
-    def password_validtor(cls, value) -> str:
+    def password_validator(cls, value: str) -> str:
         return validate_password(value)
 
 

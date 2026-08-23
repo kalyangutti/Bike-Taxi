@@ -1,32 +1,29 @@
-from datetime import datetime
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import asc, desc, select
 
 from app.database.models import Driver
-from app.schemas.driver import ChangePassword, DriverCreate, DriverUpdate
+from app.schemas.driver import (
+    ChangePassword,
+    DriverCreate,
+    DriverUpdate,
+)
 from app.security import password_hash
-from app.utils import generate_access_token
+from app.services.base import BaseService
 
 
-class DriverRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
+class DriverRepository(BaseService):
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(Driver, session)
 
     async def get_id(self, id: UUID):
-        driver = await self.session.get(Driver, id)
+        return await self._get_id(id)
 
-        if not driver:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Driver with id {id} not found.",
-            )
+    async def create_driver(
+        self, driver_create: DriverCreate, background_task: BackgroundTasks
+    ):
 
-        return driver
-
-    async def create_driver(self, driver_create: DriverCreate):
         driver = Driver(
             **driver_create.model_dump(
                 exclude={"password", "created_at", "updated_at"}
@@ -34,112 +31,72 @@ class DriverRepository:
             password=password_hash.hash(driver_create.password),
         )
 
-        self.session.add(driver)
-        await self.session.commit()
-        await self.session.refresh(driver)
+        driver = await self._create(driver)
 
-        return driver
+        await self._send_verification_otp(driver.email, background_task)
+        return {
+            "message": "Created Successfully. Verification OTP sent to your email.",
+            "new_id": driver.id,
+        }
 
-    async def update_driver(self, driver: Driver, driver_update: DriverUpdate):
-
+    async def update_driver(
+        self,
+        driver: Driver,
+        driver_update: DriverUpdate,
+    ):
         update_data = driver_update.model_dump(exclude_none=True)
 
-        if not update_data:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No update data provided.",
-            )
-
-        driver.sqlmodel_update(update_data)
-        driver.updated_at = datetime.now()
-
-        self.session.add(driver)
-        await self.session.commit()
-        await self.session.refresh(driver)
-
-        return driver
+        return await self._update(driver, update_data)
 
     async def delete_driver(self, driver: Driver):
-
         await self.session.delete(driver)
         await self.session.commit()
 
         return {"message": f"Driver {driver.id} deleted successfully."}
 
-    async def sorting(self, sort_by: str = "name", order: str = "asc"):
-        column = getattr(Driver, sort_by, None)
-
-        if column is None:
-            raise ValueError("Invalid Sorting Field")
-
-        stmt = select(Driver)
-        if order.lower() == "desc":
-            stmt = stmt.order_by(desc(column))
-        else:
-            stmt = stmt.order_by(asc(column))
-
-        result = await self.session.scalars(stmt)
-
-        return result.all()
-
-    async def pagination(
-        self, page: int = 1, size=4, sort_by: str = "name", order: str = "asc"
-    ):
-        column = getattr(Driver, sort_by, "None")
-
-        if column is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Invalid Sorting Field"
-            )
-
-        offset = (page - 1) * size
-
-        stmt = select(Driver)
-
-        if order.lower() == "desc":
-            stmt = stmt.order_by(desc(column))
-        else:
-            stmt = stmt.order_by(asc(column))
-
-        stmt = stmt.offset(offset).limit(size)
-
-        result = await self.session.scalars(stmt)
-        return result.all()
-
-    async def token(self, email, password) -> str:
-        stmt = select(Driver).where(Driver.email == email)
-        result = await self.session.execute(stmt)
-        driver = result.scalar_one_or_none()
-
-        if driver is None or not password_hash.verify(password, driver.password):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="..Email or Password is incorrect..",
-            )
-
-        token = generate_access_token(
-            data={"user": {"sub": str(driver.id), "role": "driver"}}
-        )
-        return token
-
     async def change_password(
-        self, current_data: Driver, password_data: ChangePassword
+        self,
+        current_data: Driver,
+        password_data: ChangePassword,
     ):
-        if not password_hash.verify(password_data.old_password, current_data.password):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Old password is Incorrect",
-            )
+        return await self._change_password(
+            current_data,
+            password_data.old_password,
+            password_data.new_password,
+        )
 
-        if password_data.old_password == password_data.new_password:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="New password must be different from old password..",
-            )
+    async def login(self, email: str, password: str):
+        return await self._login(
+            email=email,
+            password=password,
+            token_key="DRIVER",
+            role="driver",
+        )
 
-        current_data.password = password_hash.hash(password_data.new_password)
+    async def logout_driver(
+        self,
+        access_token: str,
+        refresh_token: str,
+    ):
+        return await self._logout(
+            access_token,
+            refresh_token,
+        )
 
-        self.session.add(current_data)
+    async def refresh_access_token(self, refresh_token: str):
+        from app.schemas.user import RefreshTokenRequest
 
-        await self.session.commit()
-        return {"message": "Password changed successfully"}
+        token_data = RefreshTokenRequest(refresh_token=refresh_token)
+
+        return await self.refresh(
+            token_data,
+            token_key="DRIVER",
+        )
+
+    async def verify_email(self, email: str, otp: int):
+        return await self._verify_email(email, otp)
+
+    async def resend_verification_otp(
+        self, email: str, background_task: BackgroundTasks
+    ):
+        return await super()._resend_verification_otp(email, background_task)

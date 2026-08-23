@@ -50,19 +50,23 @@ def get_access_token_driver(token: Annotated[str, Depends(oauth2_scheme_driver)]
 
 # Logged In
 async def get_current_driver(
-    token_data: Annotated[dict, Depends(get_access_token_driver)], session: SessionDep
+    token_data: Annotated[dict, Depends(get_access_token_driver)],
+    session: SessionDep,
 ):
     try:
-        driver_id = UUID(token_data["user"]["sub"])
+        driver_id = UUID(token_data["DRIVER"]["sub"])
     except (KeyError, ValueError, TypeError):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Access Token"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Access Token",
         )
 
     driver = await session.get(Driver, driver_id)
+
     if driver is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="User No Longer exists.."
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User No Longer exists..",
         )
 
     return driver

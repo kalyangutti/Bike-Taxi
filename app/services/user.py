@@ -1,143 +1,82 @@
-from datetime import datetime
 from uuid import UUID
 
-from fastapi import HTTPException, status
-from sqlalchemy import asc, desc
+from fastapi import BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
 
 from app.database.models import User
-from app.schemas.user import UserCreate, UserDetailsUpdate
+from app.schemas.user import (
+    ChangePassword,
+    RefreshTokenRequest,
+    UserCreate,
+    UserDetailsUpdate,
+)
 from app.security import password_hash
-from app.utils import generate_access_token, generate_refresh_token
+from app.services.base import BaseService
 
 
-class UserRepository:
-    def __init__(self, session: AsyncSession):
-        self.session = session
+class UserRepository(BaseService):
+    def __init__(self, session: AsyncSession) -> None:
+        self.model = User
+        super().__init__(self.model, session)
 
     async def get_id(self, id: UUID):
-        user = await self.session.get(User, id)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"{id} is not presnet in database...",
-            )
-        return user
+        return await self._get_id(id)
 
-    async def create_user(self, user_data: UserCreate):
+    async def create_user(
+        self,
+        user_data: UserCreate,
+        background_tasks: BackgroundTasks,
+    ):
         user = User(
             **user_data.model_dump(exclude={"password", "created_at", "updated_at"}),
             password=password_hash.hash(user_data.password),
         )
-        self.session.add(user)
-        await self.session.commit()
-        await self.session.refresh(user)
 
-        return {"Messgae": "Updated Successfully", "new_id": user.id}
+        user = await self._create(user)
+
+        await self._send_verification_otp(
+            user.email,
+            background_tasks,
+        )
+
+        return {
+            "message": "Created Successfully. Verification OTP sent to your email.",
+            "new_id": user.id,
+        }
 
     async def update_user(self, user: User, user_update: UserDetailsUpdate):
+        update_data = user_update.model_dump(exclude_none=True)
+        return await self._update(user, update_data)
 
-        update = user_update.model_dump(exclude_none=True)
-        if not update:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No update data provided",
-            )
-
-        user.sqlmodel_update(update)
-        user.updated_at = datetime.now()
-
-        await self.session.commit()
-        await self.session.refresh(user)
-        return user
-
-    async def delete_user_by_id(self, user: User):
-
+    async def delete_user(self, user: User):
         await self.session.delete(user)
         await self.session.commit()
         return {"detail": f"{user.id} has been deleted from the database.."}
 
-    async def get_all_user(self):
-        stmt = select(User)
+    async def login(self, email, password):
+        return await self._login(
+            email=email, password=password, token_key="USER", role="user"
+        )
 
-        result = await self.session.scalars(stmt)
-        users = result.all()
-
-        return users
-
-    async def sort_users(self, sort_by="name", order: str = "asc"):
-        column = getattr(User, sort_by, None)
-
-        if column is None:
-            raise ValueError("InValid Sorting Field")
-
-        stmt = select(User)
-
-        if order.lower() == "desc":
-            stmt = stmt.order_by(desc(column))
-        else:
-            stmt = stmt.order_by(asc(column))
-
-        result = await self.session.scalars(stmt)
-
-        return result.all()
-
-    async def pagination(
+    async def logout(
         self,
-        page: int = 1,
-        size: int = 4,
-        sort_by: str = "name",
-        order: str = "asc",
+        token: str,
+        refresh_token: RefreshTokenRequest,
     ):
-        column = getattr(User, sort_by, None)
+        return await self._logout(token, refresh_token)
 
-        if column is None:
-            raise HTTPException(status_code=400, detail="Invalid sorting field")
+    async def refresh(self, token_data: RefreshTokenRequest):
+        return await super().refresh(token_data, token_key="USER")
 
-        offset = (page - 1) * size
-
-        stmt = select(User)
-
-        if order.lower() == "desc":
-            stmt = stmt.order_by(desc(column))
-        else:
-            stmt = stmt.order_by(asc(column))
-
-        stmt = stmt.offset(offset).limit(size)
-
-        result = await self.session.execute(stmt)
-
-        users = result.scalars().all()
-
-        return users
-
-    async def token(self, email, password):
-        stmt = select(User).where(User.email == email)
-        result = await self.session.execute(stmt)
-        user = result.scalar_one_or_none()
-
-        if user is None or not password_hash.verify(password, user.password):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="...Email or Password is incorrect..",
-            )
-
-        access_token = generate_access_token(
-            data={"USER": {"sub": str(user.id), "role": "user"}}
+    async def change_password(self, current_data: User, password_data: ChangePassword):
+        return await self._change_password(
+            current_data,
+            password_data.old_password,
+            password_data.new_password,
         )
 
-        refresh_token = generate_refresh_token(
-            data={
-                "USER": {
-                    "sub": str(user.id),
-                    "role": "user",
-                }
-            }
-        )
+    async def verify_email(self, email: str, otp: int):
+        return await self._verify_email(email, otp)
 
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-        }
+    async def resend_verification_otp(self, email: str, background_task: BackgroundTasks):
+        return await super()._resend_verification_otp(email, background_task)

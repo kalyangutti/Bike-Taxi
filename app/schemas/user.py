@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, StringConstraints, field_validator
+from pydantic import BaseModel, EmailStr, StringConstraints, field_validator
 
 PhoneNumber = Annotated[
     str, StringConstraints(pattern=r"^[6-9]\d{9}$", strip_whitespace=True)
@@ -50,8 +50,6 @@ class UserRead(BaseUser):
 
 class UserCreate(BaseUser):
     password: str
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
 
     @field_validator("password")
     @classmethod
@@ -80,3 +78,14 @@ class UserRespone(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
+
+
+
+class ChangePassword(BaseModel):
+    old_password: str
+    new_password: str
+
+    @field_validator("old_password", "new_password")
+    @classmethod
+    def validate_password_fields(cls, value: str) -> str:
+        return validate_password(value)
