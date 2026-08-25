@@ -3,17 +3,21 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import BackgroundTasks, Depends, HTTPException, status
+from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import SQLModel, select
 
+from app.config import app_settings
 from app.core.security import oauth2_scheme_user
 from app.database.redis import (
     add_jti_to_blacklist,
     delete_email_otp,
     generate_email_otp,
+    generate_url_safe_token,
     is_jti_blacklisted,
     store_email_otp,
     verify_email_otp,
+    _token_blacklist
 )
 from app.schemas.user import RefreshTokenRequest
 from app.security import password_hash
@@ -224,7 +228,7 @@ class BaseService:
             "message": "Verification OTP sent successfully",
         }
 
-    async def _verify_email(self, email: str, otp: int):
+    async def _verify_email(self, email: EmailStr, otp: int):
         result = await self.session.execute(
             select(self.model).where(self.model.email == email)
         )
@@ -291,3 +295,69 @@ class BaseService:
         )
 
         return {"message": "OTP sent successfully"}
+
+    async def _forgot_password(
+        self,
+        email: EmailStr,
+        router_prefix: str,
+        background_tasks: BackgroundTasks,
+    ):
+        res = await self.session.execute(
+            select(self.model).where(self.model.email == email)
+        )
+
+        user = res.scalar_one_or_none()
+
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not Found.."
+            )
+
+        token = await generate_url_safe_token(user=user)
+
+        reset_url = (
+            f"http://{app_settings.APP_DOMAIN}"
+            f"{router_prefix}/reset-password?token={token}"
+        )
+
+        notification_service = NotificationService()
+
+        await notification_service.send_email_password_token(
+            email=email, token=reset_url, background_task=background_tasks
+        )
+
+        return {"message": "Mail Sent Successfully.."}
+
+
+    async def _reset_password(
+        self,
+        token: str,
+        new_password: str,
+    ):
+        key = f"reset:{token}"
+
+        user_id = await _token_blacklist.get(key)
+
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired reset token",
+            )
+
+        user_id = UUID(user_id.decode("utf-8"))
+
+        user = await self.session.get(self.model, user_id)
+
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
+        user.password = password_hash.hash(new_password)
+
+        await self.session.commit()
+
+        await _token_blacklist.delete(key)
+
+        return {"message": "Password reset successfully"}

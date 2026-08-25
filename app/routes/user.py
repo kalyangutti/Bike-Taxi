@@ -16,6 +16,7 @@ from app.schemas.user import (
     UserRead,
     UserRespone,
 )
+from app.schemas.tokens import ResetPassword
 from app.utils import (
     decode_refresh_token,
 )
@@ -105,3 +106,12 @@ async def resend_verfication(
     email: EmailStr, background_tasks: BackgroundTasks, service: UserServiceDep
 ):
     return await service.resend_verification_otp(email, background_tasks)
+
+@router.post('/forgot-password')
+async def forgot_password(email:EmailStr,background_task:BackgroundTasks,service:UserServiceDep):
+    return await service.forgot_password(email,router.prefix,background_task)
+
+
+@router.post('/reset-password')
+async def reset_password(password_data:ResetPassword,service:UserServiceDep):
+    return await service.reset_password(password_data)

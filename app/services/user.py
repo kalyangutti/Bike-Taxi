@@ -1,9 +1,11 @@
 from uuid import UUID
 
 from fastapi import BackgroundTasks
+from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models import User
+from app.schemas.tokens import ResetPassword
 from app.schemas.user import (
     ChangePassword,
     RefreshTokenRequest,
@@ -78,5 +80,17 @@ class UserRepository(BaseService):
     async def verify_email(self, email: str, otp: int):
         return await self._verify_email(email, otp)
 
-    async def resend_verification_otp(self, email: str, background_task: BackgroundTasks):
+    async def resend_verification_otp(
+        self, email: str, background_task: BackgroundTasks
+    ):
         return await super()._resend_verification_otp(email, background_task)
+
+    async def forgot_password(
+        self, email: EmailStr, router_prefix: str, background_task: BackgroundTasks
+    ):
+        return await self._forgot_password(email, router_prefix, background_task)
+
+    async def reset_password(self, password_data: ResetPassword):
+        return await self._reset_password(
+            password_data.token, password_data.new_password
+        )

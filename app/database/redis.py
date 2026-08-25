@@ -50,3 +50,12 @@ async def verify_email_otp(email: str, otp: str) -> bool:
 async def delete_email_otp(email: str):
     key = f"email:{email}"
     await _token_blacklist.delete(key)
+
+
+async def generate_url_safe_token(user):
+    token = secrets.token_urlsafe(32)
+    key = f"reset:{token}"
+
+    await _token_blacklist.set(key, str(user.id), ex=900)
+
+    return token

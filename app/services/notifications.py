@@ -11,12 +11,12 @@ class NotificationService:
         self.fastmail = FastMail(conn)
 
     async def send_email(
-    self,
-    recipients: list[EmailStr],
-    subject: str,
-    body: str,
-    background_tasks: BackgroundTasks,
-):
+        self,
+        recipients: list[EmailStr],
+        subject: str,
+        body: str,
+        background_tasks: BackgroundTasks,
+    ):
         message = MessageSchema(
             recipients=recipients,
             subject=subject,
@@ -59,4 +59,27 @@ Bike Taxi Team
             subject=subject,
             body=body,
             background_tasks=background_tasks,
+        )
+
+    async def send_email_password_token(
+    self,
+    email: EmailStr,
+    token: str,
+    background_task: BackgroundTasks,
+):
+        subject = "Bike Taxi - Password Reset"
+
+        body = f"""
+    Reset your password using the link below:
+
+    {token}
+
+    This link will expire in 15 minutes.
+    """
+
+        await self.send_email(
+            recipients=[email],
+            subject=subject,
+            body=body,
+            background_tasks=background_task,
         )

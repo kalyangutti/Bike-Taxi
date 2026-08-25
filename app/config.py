@@ -1,6 +1,11 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from regex import A
 
 _base_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+class AppSettings(BaseSettings):
+    APP_NAME: str = "BIKE TAXI"
+    APP_DOMAIN: str = "localhost:8000"
 
 
 class DatabaseSettings(BaseSettings):
@@ -39,7 +44,7 @@ class NotificationSettings(BaseSettings):
     MAIL_FROM_NAME: str
     MAIL_SERVER: str
     MAIL_PORT: int
-    
+
     MAIL_STARTTLS: bool = True
     MAIL_SSL_TLS: bool = False
     USE_CREDENTIALS: bool = True
@@ -51,3 +56,4 @@ class NotificationSettings(BaseSettings):
 db_settings = DatabaseSettings()
 security_settings = SecuritySettings()
 notifications_settings = NotificationSettings()
+app_settings = AppSettings()
