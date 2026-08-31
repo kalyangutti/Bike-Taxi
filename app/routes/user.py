@@ -7,7 +7,7 @@ from pydantic import EmailStr
 
 from app.core.security import oauth2_scheme_user
 from app.database.dependencies import UserLoginDep, UserServiceDep
-from app.schemas.notifications import EmailVerification
+from app.schemas.notifications import EmailVerification, PhoneVerification
 from app.schemas.user import (
     ChangePassword,
     RefreshTokenRequest,
@@ -98,7 +98,10 @@ async def verify_email(
     verify: EmailVerification,
     service: UserServiceDep,
 ):
-    return await service.verify_email(email=verify.email, otp=verify.otp)
+    return await service.verify_email(
+        email=verify.email,
+        otp=verify.otp,
+    )
 
 
 @router.post("/resend-verfication")
@@ -115,3 +118,8 @@ async def forgot_password(email:EmailStr,background_task:BackgroundTasks,service
 @router.post('/reset-password')
 async def reset_password(password_data:ResetPassword,service:UserServiceDep):
     return await service.reset_password(password_data)
+
+
+@router.post('/verify-phonenumber')
+async def verify_phonenumber(verify:PhoneVerification,service:UserServiceDep):
+    return await service.verify_phonenumber(verify.phone,verify.otp)

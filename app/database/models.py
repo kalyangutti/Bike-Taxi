@@ -142,6 +142,7 @@ class User(SQLModel, table=True):
 
     is_active: bool = True
     gender: Gender
+    phone_verified: bool = Field(default=False)
 
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc),

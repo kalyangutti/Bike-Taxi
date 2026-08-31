@@ -1,24 +1,16 @@
-import asyncio
+from twilio.rest import Client
+from app.config import sms_settings
 
-from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
+account_sid = sms_settings.TWILO_SID
+auth_token = sms_settings.TWILO_AUTH_TOKEN
 
-from app.config import notifications_settings
+client = Client(account_sid, auth_token)
 
-conn = ConnectionConfig(**notifications_settings.model_dump())
+message = client.messages.create(
+    from_=sms_settings.TWILO_NUMBER,  # Your Twilio number
+    to=9014929583,  # Your verified phone number
+    body="Hello from Bike Taxi! Your OTP is 123456",
+)
 
-fastmail = FastMail(conn)
-
-
-async def send_message():
-    await fastmail.send_message(
-        message=MessageSchema(
-            recipients=["kalyangutti19@gmail.com"],
-            subject="Your Email Delivered With FastShip..",
-            body="...Things are about to get Interesting..",
-            subtype=MessageType.plain,
-        )
-    )
-    print("Email Sent..")
-
-
-asyncio.run(send_message())
+print("SMS sent!")
+print("Message SID:", message.sid)

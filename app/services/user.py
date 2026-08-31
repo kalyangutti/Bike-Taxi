@@ -41,8 +41,13 @@ class UserRepository(BaseService):
             background_tasks,
         )
 
+        await self._send_sms_otp(
+            user.email,
+            background_tasks=background_tasks
+        )
+
         return {
-            "message": "Created Successfully. Verification OTP sent to your email.",
+            "message": "Created Successfully. Verification OTP sent to your email. and Phone..",
             "new_id": user.id,
         }
 
@@ -77,7 +82,7 @@ class UserRepository(BaseService):
             password_data.new_password,
         )
 
-    async def verify_email(self, email: str, otp: int):
+    async def verify_email(self, email: str, otp: str):
         return await self._verify_email(email, otp)
 
     async def resend_verification_otp(
@@ -94,3 +99,6 @@ class UserRepository(BaseService):
         return await self._reset_password(
             password_data.token, password_data.new_password
         )
+
+    async def verify_phonenumber(self, phone: str, otp: str):
+        return await self._verify_phonenumber(phone,otp)

@@ -10,14 +10,16 @@ from sqlmodel import SQLModel, select
 from app.config import app_settings
 from app.core.security import oauth2_scheme_user
 from app.database.redis import (
+    _token_blacklist,
     add_jti_to_blacklist,
     delete_email_otp,
+    delete_sms_otp,
     generate_email_otp,
+    generate_phone_otp,
     generate_url_safe_token,
-    is_jti_blacklisted,
-    store_email_otp,
+    is_jti_blacklisted,verify_sms_otp,
+
     verify_email_otp,
-    _token_blacklist
 )
 from app.schemas.user import RefreshTokenRequest
 from app.security import password_hash
@@ -35,6 +37,7 @@ class BaseService:
     def __init__(self, model: SQLModel, session: AsyncSession) -> None:
         self.session = session
         self.model = model
+        self.notification_service = NotificationService()
 
     async def _get_id(self, id: UUID):
         return await self.session.get(self.model, id)
@@ -210,47 +213,46 @@ class BaseService:
     async def _send_verification_otp(
         self, email: str, background_tasks: BackgroundTasks
     ):
-        otp = await generate_email_otp()
+        otp = await generate_email_otp(email)
 
-        await store_email_otp(
-            email=email,
-            otp=otp,
-            ttl=600,
-        )
 
-        notification_service = NotificationService()
 
-        await notification_service.send_email_otp(
+
+
+        await self.notification_service.send_email_otp(
             email=email, otp=otp, background_tasks=background_tasks
         )
 
-        return {
-            "message": "Verification OTP sent successfully",
-        }
+        print("message  :  Verification OTP sent successfully")
 
-    async def _verify_email(self, email: EmailStr, otp: int):
+    async def _verify_email(self, email: EmailStr, otp: str):
         result = await self.session.execute(
             select(self.model).where(self.model.email == email)
         )
+
         user = result.scalar_one_or_none()
 
         if user is None:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="User Not Found.."
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User Not Found..",
             )
 
         if user.email_verified:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email is already verfied..",
+                detail="Email is already verified..",
             )
 
-        is_valid = await verify_email_otp(email=email, otp=str(otp))
+        is_valid = await verify_email_otp(
+            email=str(email),
+            otp=otp,
+        )
 
         if not is_valid:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid or expired otp..",
+                detail="Invalid or expired OTP..",
             )
 
         user.email_verified = True
@@ -258,11 +260,13 @@ class BaseService:
         await self.session.commit()
         await self.session.refresh(user)
 
-        await delete_email_otp(email)
+        await delete_email_otp(str(email))
 
         return {
             "message": "Email verified successfully",
         }
+
+
 
     async def _resend_verification_otp(
         self, email: str, background_task: BackgroundTasks
@@ -288,9 +292,7 @@ class BaseService:
 
         await store_email_otp(email=email, otp=otp, ttl=600)
 
-        notification_service = NotificationService()
-
-        await notification_service.send_email_otp(
+        await self.notification_service.send_email_otp(
             email=email, otp=otp, background_tasks=background_task
         )
 
@@ -320,14 +322,11 @@ class BaseService:
             f"{router_prefix}/reset-password?token={token}"
         )
 
-        notification_service = NotificationService()
-
-        await notification_service.send_email_password_token(
+        await self.notification_service.send_email_password_token(
             email=email, token=reset_url, background_task=background_tasks
         )
 
         return {"message": "Mail Sent Successfully.."}
-
 
     async def _reset_password(
         self,
@@ -361,3 +360,63 @@ class BaseService:
         await _token_blacklist.delete(key)
 
         return {"message": "Password reset successfully"}
+
+    async def _send_sms_otp(self, email: str, background_tasks: BackgroundTasks):
+        res = await self.session.execute(
+            select(self.model).where(self.model.email == email)
+        )
+        user = res.scalar_one_or_none()
+
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="User Not Found.."
+            )
+
+        if user.phone_verified:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Phone Number already Verified..",
+            )
+
+        otp = await generate_phone_otp(phone=user.phone, ttl=600)
+
+        await self.notification_service.send_sms_otp(
+            email=email, otp=otp, background_tasks=background_tasks
+        )
+
+        print("Message : SMS sent Succesfully..")
+
+    async def _verify_phonenumber(self, phone: str, otp: str):
+        res = await self.session.execute(
+            select(self.model).where(self.model.phone == phone)
+        )
+
+        user = res.scalar_one_or_none()
+
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not Found..."
+            )
+
+        if user.phone_verified:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Phone Already Verifed..",
+            )
+
+        is_valid = await verify_sms_otp(phone, otp)
+
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or exipred otp..",
+            )
+
+        user.phone_verified = True
+
+        await self.session.commit()
+        await self.session.refresh(user)
+
+        await delete_sms_otp(phone)
+
+        return {"message": "Phone  verified successfully"}

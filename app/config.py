@@ -1,7 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from regex import A
 
 _base_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
 
 class AppSettings(BaseSettings):
     APP_NAME: str = "BIKE TAXI"
@@ -37,13 +37,15 @@ class SecuritySettings(BaseSettings):
     model_config = _base_config
 
 
-class NotificationSettings(BaseSettings):
+class EmailNotificationSettings(BaseSettings):
     MAIL_USERNAME: str
     MAIL_PASSWORD: str
     MAIL_FROM: str
     MAIL_FROM_NAME: str
     MAIL_SERVER: str
     MAIL_PORT: int
+
+  
 
     MAIL_STARTTLS: bool = True
     MAIL_SSL_TLS: bool = False
@@ -53,7 +55,16 @@ class NotificationSettings(BaseSettings):
     model_config = _base_config
 
 
+class SMSNotficationSettings(BaseSettings):
+    TWILO_SID: str
+    TWILO_AUTH_TOKEN: str
+    TWILO_NUMBER: str
+
+    model_config = _base_config
+
+
 db_settings = DatabaseSettings()
 security_settings = SecuritySettings()
-notifications_settings = NotificationSettings()
+email_notifications_settings = EmailNotificationSettings()
 app_settings = AppSettings()
+sms_settings = SMSNotficationSettings()
