@@ -8,7 +8,7 @@ from pydantic import EmailStr
 from app.core.security import oauth2_scheme_driver
 from app.database.dependencies import DriverLoginDep, DriverServiceDep, SessionDep
 from app.schemas.driver import ChangePassword, DriverCreate, DriverRespone, DriverUpdate
-from app.schemas.notifications import EmailVerification
+from app.schemas.notifications import EmailVerification,PhoneVerification
 from app.schemas.user import RefreshTokenRequest
 
 router = APIRouter(prefix="/drivers", tags=["Driver"])
@@ -114,3 +114,8 @@ async def resend_otp(
     email: EmailStr, background_task: BackgroundTasks, service: DriverServiceDep
 ):
     return await service.resend_verification_otp(email, background_task)
+
+
+@router.post("/verify-phonenumber")
+async def verify_phonenumber(verify: PhoneVerification, service: DriverServiceDep):
+    return await service.verify_phonenumber(verify.phone, verify.otp)

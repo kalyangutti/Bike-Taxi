@@ -82,6 +82,7 @@ class Driver(SQLModel, table=True):
     phone: PhoneNumber
     password: str
     email_verified: bool = False
+    phone_verified: bool = Field(default=False)
 
     is_active: bool = True
 

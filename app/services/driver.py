@@ -34,10 +34,12 @@ class DriverRepository(BaseService):
         driver = await self._create(driver)
 
         await self._send_verification_otp(driver.email, background_task)
+
+        await self._send_sms_otp(driver.email,background_tasks=background_task)
         return {
-            "message": "Created Successfully. Verification OTP sent to your email.",
-            "new_id": driver.id,
-        }
+                    "message": "Created Successfully. Verification OTP sent to your email. and Phone..",
+                    "new_id": driver.id,
+                }
 
     async def update_driver(
         self,
@@ -100,3 +102,6 @@ class DriverRepository(BaseService):
         self, email: str, background_task: BackgroundTasks
     ):
         return await super()._resend_verification_otp(email, background_task)
+
+    async def verify_phonenumber(self, phone: str, otp: str):
+        return await super()._verify_phonenumber(phone, otp)
